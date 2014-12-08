@@ -49,34 +49,36 @@ int     mysql_num_fields    (int resultStruct);
 int     mysql_num_rows      (int resultStruct);
 void    mysql_free_result   (int resultStruct);
  
+
+
 //+----------------------------------------------------------------------------+
 //| Connect to MySQL and write connection ID to the first argument             |
 //| Probably not the most elegant way but it works well for simple purposes    |
 //| and is flexible enough to allow multiple connections                       |
 //+----------------------------------------------------------------------------+
-bool init_MySQL(int & dbConnectId, string host, string user, string pass, string dbName, int port = 3306, int socket = 0, int client = 0) {
-    dbConnectId = mysql_init(dbConnectId);
+bool init_MySQL(int & mysql_dbConnectId, string mysql_host, string mysql_user, string mysql_pass, string mysql_dbName, int mysql_port = 3306, int mysql_socket = 0, int mysql_client = 0) {
+    mysql_dbConnectId = mysql_init(mysql_dbConnectId);
     
-    if ( dbConnectId == 0 ) {
+    if ( mysql_dbConnectId == 0 ) {
         Print("init_MySQL: mysql_init failed. There was insufficient memory to allocate a new object");
         return (false);
     }
     
     // Convert the strings to uchar[] arrays
    uchar hostChar[];
-   StringToCharArray(host, hostChar);
+   StringToCharArray(mysql_host, hostChar);
    uchar userChar[];
-   StringToCharArray(user, userChar);
+   StringToCharArray(mysql_user, userChar);
    uchar passChar[];
-   StringToCharArray(pass, passChar);
+   StringToCharArray(mysql_pass, passChar);
    uchar dbNameChar[];
-   StringToCharArray(dbName, dbNameChar);
+   StringToCharArray(mysql_dbName, dbNameChar);
     
-    int result = mysql_real_connect(dbConnectId, hostChar, userChar, passChar, dbNameChar, port, socket, client); 
+    int result = mysql_real_connect(mysql_dbConnectId, hostChar, userChar, passChar, dbNameChar, mysql_port, mysql_socket, mysql_client); 
     
-    if ( result != dbConnectId ) {
-        int errno = mysql_errno(dbConnectId);
-        string error = mql4_mysql_ansi2unicode(mysql_error(dbConnectId));
+    if ( result != mysql_dbConnectId ) {
+        int errno = mysql_errno(mysql_dbConnectId);
+        string error = mql4_mysql_ansi2unicode(mysql_error(mysql_dbConnectId));
         
         Print("init_MySQL: mysql_errno: ", errno,"; mysql_error: ", error);
         return (false);
@@ -87,18 +89,19 @@ bool init_MySQL(int & dbConnectId, string host, string user, string pass, string
 //+----------------------------------------------------------------------------+
 //|                                                                            |
 //+----------------------------------------------------------------------------+
-void deinit_MySQL(int dbConnectId){
-    mysql_close(dbConnectId);
+void deinit_MySQL(int mysql_dbConnectId){
+    mysql_close(mysql_dbConnectId);
 }
+
 
 //+----------------------------------------------------------------------------+
 //| Check whether there was an error with last query                           |
 //|                                                                            |
 //| return (true): no error; (false): there was an error;                      |
 //+----------------------------------------------------------------------------+
-bool MySQL_NoError(int dbConnectId) {
-    int errno = mysql_errno(dbConnectId);
-    string error = mql4_mysql_ansi2unicode(mysql_error(dbConnectId));
+bool MySQL_NoError(int mysql_dbConnectId) {
+    int errno = mysql_errno(mysql_dbConnectId);
+    string error = mql4_mysql_ansi2unicode(mysql_error(mysql_dbConnectId));
     
     if ( errno > 0 ) {
         Print("MySQL_NoError: mysql_errno: ", errno,"; mysql_error: ", error);
@@ -110,12 +113,12 @@ bool MySQL_NoError(int dbConnectId) {
 //+----------------------------------------------------------------------------+
 //| Simply run a query, perfect for actions like INSERTs, UPDATEs, DELETEs     |
 //+----------------------------------------------------------------------------+
-bool MySQL_Query(int dbConnectId, string query) {
+bool MySQL_Query(int mysql_dbConnectId, string query) {
     uchar queryChar[];
     StringToCharArray(query, queryChar);
     
-    mysql_query(dbConnectId, queryChar);
-    if ( MySQL_NoError(dbConnectId) ) {
+    mysql_query(mysql_dbConnectId, queryChar);
+    if ( MySQL_NoError(mysql_dbConnectId) ) {
         return (true);
     }
     return (false);
@@ -126,15 +129,15 @@ bool MySQL_Query(int dbConnectId, string query) {
 //|                                                                            |
 //| return (-1): error; (0): 0 rows selected; (1+): some rows selected;         |
 //+----------------------------------------------------------------------------+
-int MySQL_FetchArray(int dbConnectId, string query, string & data[][]){
+int MySQL_FetchArray(int mysql_dbConnectId, string query, string & data[][]){
 
-    if ( !MySQL_Query(dbConnectId, query) ) {
+    if ( !MySQL_Query(mysql_dbConnectId, query) ) {
         return (-1);
     }
     
-    int resultStruct = mysql_store_result(dbConnectId);
+    int resultStruct = mysql_store_result(mysql_dbConnectId);
     
-    if ( !MySQL_NoError(dbConnectId) ) {
+    if ( !MySQL_NoError(mysql_dbConnectId) ) {
         Print("mysqlFetchArray: resultStruct: ", resultStruct);
         return (-1);
     }
@@ -153,6 +156,10 @@ int MySQL_FetchArray(int dbConnectId, string query, string & data[][]){
     
       int row_ptr = mysql_fetch_row(resultStruct);
       int len_ptr = mysql_fetch_lengths(resultStruct);
+
+      if (row_ptr == 0 || len_ptr == 0) {
+         Print("row- or length pointer is NULL, segfault ahead?");
+      }
       
       for ( int j = 0; j < num_fields; j++ ) {
          int leng;
@@ -175,7 +182,7 @@ int MySQL_FetchArray(int dbConnectId, string query, string & data[][]){
     
     mysql_free_result(resultStruct);
     
-    if ( MySQL_NoError(dbConnectId) ) {
+    if ( MySQL_NoError(mysql_dbConnectId) ) {
         return (num_rows);
     }    
     return (-1);
@@ -197,4 +204,3 @@ string mql4_mysql_ansi2unicode(int ptrStringMemory)
   return str;
 }
 //+----------------------------------------------------------------------------+
-
